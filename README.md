@@ -13,13 +13,12 @@ We utilize the **METABRIC** (Molecular Taxonomy of Breast Cancer International C
 4. **Machine Learning (Phase 2):** We utilized `scikit-survival` (Cox Proportional Hazards, Random Survival Forests) to predict exact survival timelines, measured by the Concordance Index (C-Index).
 
 ### How to Run the Code
-**Note on Data Storage:** Due to GitHub's file size limits, the `METABRIC_RNA_Mutation.csv` dataset is not hosted in this repository. 
+The complete dataset (`METABRIC_RNA_Mutation.csv`) is included directly in this repository for seamless replication. 
 
-To run this notebook locally or in Google Colab:
-1. Clone this repository or download `METABRICIA.ipynb`.
-2. Download the METABRIC dataset from [Insert Link to Dataset Here].
-3. Place `METABRIC_RNA_Mutation.csv` in the exact same directory as the notebook.
-4. Run all cells sequentially. 
+To run this project:
+1. Clone this repository to your local machine or open the notebook in Google Colab.
+2. Ensure the `METABRIC_RNA_Mutation.csv` file remains in the same directory as the `METABRICIA.ipynb` notebook.
+3. Run all cells sequentially.
 
 ### Libraries Used
 * `pandas`, `numpy`, `matplotlib`, `seaborn`
