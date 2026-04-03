@@ -55,6 +55,8 @@ def count_feature_categories(
     categories: known clinical attributes, somatic mutation flags (suffixed
     with '_mut'), or mRNA expression z-scores (everything else).
 
+    It is assumed that the provided column names are these of the METABRIC dataset
+
     Args:
         feature_columns: A sequence of feature column name strings to classify.
 
@@ -82,8 +84,5 @@ def count_feature_categories(
         'm-RNA levels z-score': len(mrna_cols),
         'Mutation': len(mutation_cols),
     }
-
-    for category, count in counts.items():
-        print(f'{category}: {count}')
 
     return counts, clinical_cols, mrna_cols, mutation_cols
