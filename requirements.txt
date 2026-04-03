@@ -21,6 +21,7 @@ joblib==1.5.3
 jupyter-client==8.8.0
 jupyter-core==5.9.1
 jupyterlab-widgets==3.0.16
+kagglehub==1.0.0
 kiwisolver==1.5.0
 llvmlite==0.46.0
 matplotlib==3.10.8
