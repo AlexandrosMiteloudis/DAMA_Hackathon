@@ -181,42 +181,30 @@ def _warn_if_low_folds(outer_splits: int, repeats: int) -> None:
 
 
 def _aggregate_metrics(outer_scores: dict) -> dict:
-    """Compute summary statistics over outer fold scores."""
     aggregated = {}
     for metric_name, scores in outer_scores.items():
         arr = np.array(scores, dtype=float)
         aggregated[metric_name] = {
-            "fold_scores": arr.tolist(),
-            "mean": float(np.mean(arr)),
-            "std": float(np.std(arr, ddof=1)) if len(arr) > 1 else 0.0,
-            "min": float(np.min(arr)),
-            "max": float(np.max(arr)),
+            "fold_scores": [round(float(s), 4) for s in arr],
+            "mean": round(float(np.mean(arr)), 4),
+            "std": round(float(np.std(arr, ddof=1)), 4) if len(arr) > 1 else 0.0,
+            "min": round(float(np.min(arr)), 4),
+            "max": round(float(np.max(arr)), 4),
         }
     return aggregated
 
 
-def _aggregate_combo_comparison(
-    all_combos_tracker: dict,
-    refit_metric: str,
-) -> list:
-    """Summarise inner-CV scores per hyperparameter combination across folds."""
-    combo_list =[]
+def _aggregate_combo_comparison(all_combos_tracker: dict, refit_metric: str) -> list:
+    combo_list = []
     for params_str, scores in all_combos_tracker.items():
         arr = np.array(scores, dtype=float)
         combo_list.append({
             "params": params_str,
-            f"mean_inner_{refit_metric}": float(np.mean(arr)),
-            f"std_inner_{refit_metric}": (
-                float(np.std(arr, ddof=1)) if len(arr) > 1 else 0.0
-            ),
+            f"mean_inner_{refit_metric}": round(float(np.mean(arr)), 4),
+            f"std_inner_{refit_metric}": round(float(np.std(arr, ddof=1)), 4) if len(arr) > 1 else 0.0,
             "n_outer_folds_seen": int(len(arr)),
         })
-
-    return sorted(
-        combo_list,
-        key=lambda x: x[f"mean_inner_{refit_metric}"],
-        reverse=True,
-    )
+    return sorted(combo_list, key=lambda x: x[f"mean_inner_{refit_metric}"], reverse=True)
 
 
 def _aggregate_hyperparameter_stability(best_params_per_fold: list) -> dict:
@@ -415,14 +403,14 @@ def evaluate_nested_cv(
                     f"Original error: {exc}"
                 ) from exc
 
-            outer_scores[metric_name].append(float(score))
-            fold_scores[metric_name] = float(score)
+            outer_scores[metric_name].append(round(float(score), 4))
+            fold_scores[metric_name] = round(float(score), 4)
 
         fold_details.append({
             "fold": fold_idx,
             "best_params": best_params,
             "outer_test_scores": fold_scores,
-            "best_inner_score": float(search.best_score_),
+            "best_inner_score": round(float(search.best_score_), 4),
         })
 
         if verbose:
