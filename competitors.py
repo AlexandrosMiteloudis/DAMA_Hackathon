@@ -5,10 +5,7 @@ competitors.py containing different approaches for the METABRIC dataset
 """
 
 import matplotlib.pyplot as plt
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, roc_curve
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 def get_rezaeian_features():
     """Returns the exact list of 39 features identified in the Rezaeian study."""
