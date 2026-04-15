@@ -30,6 +30,7 @@ def map_competitor_features(available_columns, competitor_list):
     return mapped
 
 def export_benchmark_matrices(model, X_test, y_test, threshold=0.5, suffix="", save_file=False):
+    """Exports confusion matrix based on dynamic threshold for binary classification."""
     probs = model.predict_proba(X_test)[:, 1]
     preds = (probs >= threshold).astype(int)
     cm = confusion_matrix(y_test, preds)
