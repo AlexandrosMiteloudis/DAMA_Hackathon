@@ -4,13 +4,13 @@ TO BE COMPLETED
 
 ## Installing requirements
 
-In order to be aligned with the development requierements of this project, follow the next commands:
+To ensure your environment matches the project requirements, run:
 
-```python
-conda create -n "<your-selected-name>" python==3.12.0
-conda activate <your-selected-name>
+```bash
+conda create -n <your-preferred-env-name> python==3.12.0
+conda activate <your-preferred-env-name>
 pip install -r requirements.txt
 ```
 
-The above mentioned setup has been tested on macOS Tahoe.
+The above mentioned setup has been tested on macOS (Tahoe 26.4.1) and Ubuntu (24.04.4 LTS).
  
