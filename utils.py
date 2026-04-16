@@ -33,16 +33,17 @@ def load_metabric_data() -> pd.DataFrame:
 
 _KNOWN_CLINICAL_FEATURES: frozenset[str] = frozenset({
     'age_at_diagnosis',
-    'chemotherapy',
     'cohort',
-    'hormone_therapy',
     'lymph_nodes_examined_positive',
     'mutation_count',
     'neoplasm_histologic_grade',
     'nottingham_prognostic_index',
-    'radio_therapy',
     'tumor_size',
     'tumor_stage',
+    'cellularity',
+    'er_status',
+    'pr_status',
+    'her2_status'
 })
 
 
@@ -86,3 +87,63 @@ def count_feature_categories(
     }
 
     return counts, clinical_cols, mrna_cols, mutation_cols
+
+
+
+class SmartClinicalImputer(BaseEstimator, TransformerMixin):
+    """ Custom Imputer that fills missing values in Histologic Grade and Tumor Stage 
+    based on clinical rules (NPI and TNM).
+    """
+    def fit(self, X, y=None):
+        return self
+    
+    def transform(self, X):
+        X_out = X.copy()
+        if not isinstance(X_out, pd.DataFrame):
+            X_out = pd.DataFrame(X_out)
+            
+        def impute_grade(row):
+            if not pd.isna(row.get("neoplasm_histologic_grade")): 
+                return row["neoplasm_histologic_grade"]
+            npi = row.get("nottingham_prognostic_index")
+            if pd.isna(npi): return 2.0
+            if npi < 3.0: return 1.0
+            if npi < 4.2: return 2.0
+            return 3.0
+            
+        def impute_stage(row):
+            if not pd.isna(row.get("tumor_stage")): 
+                return row["tumor_stage"]
+            size = row.get("tumor_size")
+            ln = row.get("lymph_nodes_examined_positive")
+            if pd.isna(size) or pd.isna(ln): return 2.0
+            if size > 50 or ln >= 4: return 3.0
+            if size <= 20 and ln == 0: return 1.0
+            return 2.0
+        
+        if "neoplasm_histologic_grade" in X_out.columns:
+            X_out["neoplasm_histologic_grade"] = X_out.apply(impute_grade, axis=1)
+        if "tumor_stage" in X_out.columns:
+            X_out["tumor_stage"] = X_out.apply(impute_stage, axis=1)
+            
+        return X_out
+
+class DiscordantSignatureAdder(BaseEstimator, TransformerMixin):
+    """ Creates the combined molecular score of the 3 genes. 
+    """
+    def fit(self, X, y=None):
+        return self
+        
+    def transform(self, X):
+        X_out = X.copy()
+        if not isinstance(X_out, pd.DataFrame):
+            X_out = pd.DataFrame(X_out)
+            
+        required_genes = ['stat5a', 'mmp11', 'col22a1']
+        if all(gene in X_out.columns for gene in required_genes):
+            X_out['discordant_molecular_score'] = (
+                (-1 * X_out['stat5a']) + 
+                (1 * X_out['mmp11']) + 
+                (1 * X_out['col22a1'])
+            )
+        return X_out
