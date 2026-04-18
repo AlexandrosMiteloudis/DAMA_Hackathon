@@ -91,9 +91,44 @@ def count_feature_categories(
 
 class SmartClinicalImputer(BaseEstimator, TransformerMixin):
     """Custom Imputer that fills missing values in Histologic Grade and Tumor Stage 
-    based on clinical rules (NPI and TNM).
+    based on clinical rules (NPI and TNM). Calculates dynamic medians during fit.
+
+    Clinical Rules Applied:
+    - Tumor Size (20.0, 50.0): Based on the global TNM cancer staging system, 
+      where T1 is <= 20mm, T2 is 20-50mm, and T3 is > 50mm.
+    - NPI (3.0, 4.2): Based on the Nottingham Prognostic Index formula 
+      [NPI = (0.2 * Size) + Nodes + Grade]. 
+          > Since minimum Node score is 1 and Size > 0, an NPI < 3.0 mathematically guarantees a Histological Grade of 1. 
+          > Similarly, an NPI < 4.2 makes Grade 3 highly unlikely (minimum NPI for 
+            Grade 3 is typically > 4.0), thus we confidently assign Grade 2.
+        
     """
+    def __init__(self, 
+                 npi_low_cutoff=3.0, 
+                 npi_mid_cutoff=4.2, 
+                 tumor_size_t1_max=20.0, 
+                 tumor_size_t2_max=50.0):
+        
+        self.npi_low_cutoff = npi_low_cutoff
+        self.npi_mid_cutoff = npi_mid_cutoff
+                     
+        self.tumor_size_t1_max = tumor_size_t1_max
+        self.tumor_size_t2_max = tumor_size_t2_max
+        
+        self.median_grade = None
+        self.median_stage = None
+
     def fit(self, X, y=None):
+        if isinstance(X, pd.DataFrame):
+            if 'neoplasm_histologic_grade' in X.columns:
+                self.median_grade = X['neoplasm_histologic_grade'].median()
+            else:
+                self.median_grade = 2.0
+
+            if 'tumor_stage' in X.columns:
+                self.median_stage = X['tumor_stage'].median()
+            else:
+                self.median_stage = 2.0
         return self
 
     def transform(self, X):
@@ -104,20 +139,26 @@ class SmartClinicalImputer(BaseEstimator, TransformerMixin):
         def impute_grade(row):
             if not pd.isna(row.get("neoplasm_histologic_grade")): 
                 return row["neoplasm_histologic_grade"]
+            
             npi = row.get("nottingham_prognostic_index")
-            if pd.isna(npi): return 2.0
-            if npi < 3.0: return 1.0
-            if npi < 4.2: return 2.0
+           
+            if pd.isna(npi): return self.median_grade 
+            
+            if npi < self.npi_low_cutoff: return 1.0
+            if npi < self.npi_mid_cutoff: return 2.0
             return 3.0
 
         def impute_stage(row):
             if not pd.isna(row.get("tumor_stage")): 
                 return row["tumor_stage"]
+            
             size = row.get("tumor_size")
             ln = row.get("lymph_nodes_examined_positive")
-            if pd.isna(size) or pd.isna(ln): return 2.0
-            if size > 50 or ln >= 4: return 3.0
-            if size <= 20 and ln == 0: return 1.0
+            
+            if pd.isna(size) or pd.isna(ln): return self.median_stage 
+            
+            if size > self.tumor_size_t2_max or ln >= 4: return 3.0
+            if size <= self.tumor_size_t1_max and ln == 0: return 1.0
             return 2.0
 
         if "neoplasm_histologic_grade" in X_out.columns:
