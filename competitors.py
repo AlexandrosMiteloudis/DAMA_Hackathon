@@ -31,7 +31,6 @@ def map_competitor_features(available_columns, competitor_list):
         if base_gene in competitor_list:
             mapped.append(col)
 
-    # Updated message as requested by reviewers
     print(f"Mapped {len(mapped)} features out of the {len(competitor_list)} features selected by the competitor.")
     return mapped
 
