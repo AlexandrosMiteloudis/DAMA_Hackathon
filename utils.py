@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Sequence
 
 import kagglehub
-import numpy as np  # Προστέθηκε για τους υπολογισμούς στις κλάσεις
+import numpy as np 
 import pandas as pd
-# Προστέθηκε για τη συμβατότητα με το Scikit-Learn Pipeline
+
 from sklearn.base import BaseEstimator, TransformerMixin
 
 
