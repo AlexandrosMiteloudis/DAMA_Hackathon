@@ -3,15 +3,16 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import (
-    confusion_matrix,
     ConfusionMatrixDisplay,
-    roc_curve,
-    precision_recall_curve,
     average_precision_score,
+    confusion_matrix,
     f1_score,
+    precision_recall_curve,
+    roc_curve,
 )
+from sklearn.model_selection import GridSearchCV
+
 
 def get_rezaeian_features():
     """Returns the exact list of 39 features identified in the Rezaeian study."""
