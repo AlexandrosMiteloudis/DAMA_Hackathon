@@ -108,10 +108,8 @@ class SmartClinicalImputer(BaseEstimator, TransformerMixin):
                  npi_mid_cutoff=4.2, 
                  tumor_size_t1_max=20.0, 
                  tumor_size_t2_max=50.0):
-        
         self.npi_low_cutoff = npi_low_cutoff
         self.npi_mid_cutoff = npi_mid_cutoff
-                     
         self.tumor_size_t1_max = tumor_size_t1_max
         self.tumor_size_t2_max = tumor_size_t2_max
         
@@ -120,6 +118,7 @@ class SmartClinicalImputer(BaseEstimator, TransformerMixin):
 
     def fit(self, X, y=None):
         if isinstance(X, pd.DataFrame):
+            # Fallback to 2.0: The global median/mode for the METABRIC cohort
             if 'neoplasm_histologic_grade' in X.columns:
                 self.median_grade = X['neoplasm_histologic_grade'].median()
             else:
@@ -141,7 +140,6 @@ class SmartClinicalImputer(BaseEstimator, TransformerMixin):
                 return row["neoplasm_histologic_grade"]
             
             npi = row.get("nottingham_prognostic_index")
-           
             if pd.isna(npi): return self.median_grade 
             
             if npi < self.npi_low_cutoff: return 1.0
@@ -154,7 +152,6 @@ class SmartClinicalImputer(BaseEstimator, TransformerMixin):
             
             size = row.get("tumor_size")
             ln = row.get("lymph_nodes_examined_positive")
-            
             if pd.isna(size) or pd.isna(ln): return self.median_stage 
             
             if size > self.tumor_size_t2_max or ln >= 4: return 3.0
@@ -170,8 +167,7 @@ class SmartClinicalImputer(BaseEstimator, TransformerMixin):
 
 
 class DiscordantSignatureAdder(BaseEstimator, TransformerMixin):
-    """Creates the combined molecular score of the 3 genes.
-    """
+    """Creates the combined molecular score of the 3 genes."""
     def fit(self, X, y=None):
         return self
 
@@ -182,10 +178,10 @@ class DiscordantSignatureAdder(BaseEstimator, TransformerMixin):
 
         required_genes = ['stat5a', 'mmp11', 'col22a1']
         if all(gene in X_out.columns for gene in required_genes):
-            # Υπολογισμός Score = (MMP11 + COL22A1) - STAT5A
+            # Score Formula: (MMP11 + COL22A1) - STAT5A
             X_out['discordant_molecular_score'] = (
-                (-1 * X_out['stat5a']) + 
-                (1 * X_out['mmp11']) + 
-                (1 * X_out['col22a1'])
+                X_out['mmp11'] + 
+                X_out['col22a1'] - 
+                X_out['stat5a']
             )
         return X_out
