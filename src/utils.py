@@ -4,6 +4,37 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Sequence
+
+import kagglehub
+import pandas as pd
+
+
+def load_metabric_data() -> pd.DataFrame:
+    """Downloads and loads the METABRIC dataset from Kaggle.
+
+    Fetches the breast cancer gene expression dataset containing RNA and
+    mutation data for ~2,000 primary breast cancer samples.
+
+    Returns:
+        A pandas DataFrame with METABRIC clinical, mutation, and RNA data.
+    """
+    print('Fetching METABRIC dataset from Kaggle...')
+
+    dataset_dir = kagglehub.dataset_download(
+        'raghadalharbi/breast-cancer-gene-expression-profiles-metabric'
+    )
+
+    csv_path = Path(dataset_dir) / 'METABRIC_RNA_Mutation.csv'
+
+    df = pd.read_csv(csv_path, low_memory=False)
+
+    return df
+
+
 
 
 _KNOWN_CLINICAL_FEATURES: frozenset[str] = frozenset({
@@ -60,17 +91,6 @@ def count_feature_categories(
     }
 
     return counts, clinical_cols, mrna_cols, mutation_cols
-
-
-def load_metabric_data() -> pd.DataFrame:
-    import kagglehub
-    from pathlib import Path
-    print('Fetching METABRIC dataset from Kaggle...')
-    dataset_dir = kagglehub.dataset_download(
-        'raghadalharbi/breast-cancer-gene-expression-profiles-metabric'
-    )
-    csv_path = Path(dataset_dir) / 'METABRIC_RNA_Mutation.csv'
-    return pd.read_csv(csv_path, low_memory=False)
 
 def prepare_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     """Prepares features and target variable."""
