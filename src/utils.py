@@ -5,6 +5,63 @@ from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 
+
+_KNOWN_CLINICAL_FEATURES: frozenset[str] = frozenset({
+    'age_at_diagnosis',
+    'chemotherapy',
+    'cohort',
+    'hormone_therapy',
+    'lymph_nodes_examined_positive',
+    'mutation_count',
+    'neoplasm_histologic_grade',
+    'nottingham_prognostic_index',
+    'radio_therapy',
+    'tumor_size',
+    'tumor_stage',
+})
+
+def count_feature_categories(
+    feature_columns: Sequence[str],
+) -> tuple[dict[str, int], list[str], list[str], list[str]]:
+    """Classifies feature columns into clinical, mRNA, and mutation groups.
+
+    Iterates over the provided column names and assigns each to one of three
+    categories: known clinical attributes, somatic mutation flags (suffixed
+    with '_mut'), or mRNA expression z-scores (everything else).
+
+    It is assumed that the provided column names are these of the METABRIC dataset
+
+    Args:
+        feature_columns: A sequence of feature column name strings to classify.
+
+    Returns:
+        A 4-tuple of:
+            - counts: A dict mapping each category label to its column count.
+            - clinical_cols: List of matched clinical attribute column names.
+            - mrna_cols: List of mRNA z-score column names.
+            - mutation_cols: List of mutation flag column names.
+    """
+    clinical_cols: list[str] = []
+    mutation_cols: list[str] = []
+    mrna_cols: list[str] = []
+
+    for col in feature_columns:
+        if col.endswith('_mut'):
+            mutation_cols.append(col)
+        elif col in _KNOWN_CLINICAL_FEATURES:
+            clinical_cols.append(col)
+        else:
+            mrna_cols.append(col)
+
+    counts = {
+        'Clinical Attributes': len(clinical_cols),
+        'm-RNA levels z-score': len(mrna_cols),
+        'Mutation': len(mutation_cols),
+    }
+
+    return counts, clinical_cols, mrna_cols, mutation_cols
+
+
 def load_metabric_data() -> pd.DataFrame:
     import kagglehub
     from pathlib import Path
@@ -66,12 +123,12 @@ class SmartClinicalImputer(BaseEstimator, TransformerMixin):
             if 'neoplasm_histologic_grade' in X.columns:
                 self.median_grade = X['neoplasm_histologic_grade'].median()
             else:
-                self.median_grade = 2.0
+                raise ValueError(f"Missing neoplasm_histologic_grade column")
 
             if 'tumor_stage' in X.columns:
                 self.median_stage = X['tumor_stage'].median()
             else:
-                self.median_stage = 2.0
+                raise ValueError(f"Missing tumor_stage column")
         return self
 
     def transform(self, X):
@@ -81,9 +138,12 @@ class SmartClinicalImputer(BaseEstimator, TransformerMixin):
             if not pd.isna(row.get("neoplasm_histologic_grade")): 
                 return row["neoplasm_histologic_grade"]
             npi = row.get("nottingham_prognostic_index")
-            if pd.isna(npi): return self.median_grade 
-            if npi < 3.0: return 1.0
-            if npi < 4.2: return 2.0
+            if pd.isna(npi): 
+                return self.median_grade 
+            if npi < 3.0: 
+                return 1.0
+            if npi < 4.2: 
+                return 2.0
             return 3.0
 
         def impute_stage(row):
@@ -91,9 +151,12 @@ class SmartClinicalImputer(BaseEstimator, TransformerMixin):
                 return row["tumor_stage"]
             size = row.get("tumor_size")
             ln = row.get("lymph_nodes_examined_positive")
-            if pd.isna(size) or pd.isna(ln): return self.median_stage 
-            if size > 50.0 or ln >= 4: return 3.0
-            if size <= 20.0 and ln == 0: return 1.0
+            if (pd.isna(size) or pd.isna(ln)):
+                return self.median_stage 
+            if (size > 50.0 or ln >= 4):
+                return 3.0
+            if (size <= 20.0 and ln == 0): 
+                return 1.0
             return 2.0
 
         if "neoplasm_histologic_grade" in X_out.columns:
