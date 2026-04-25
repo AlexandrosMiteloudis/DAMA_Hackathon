@@ -1,16 +1,15 @@
-import pandas as pd
-from typing import Sequence, Tuple
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, Tuple
 
 import kagglehub
 import pandas as pd
+
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 
 def load_metabric_data() -> pd.DataFrame:
