@@ -108,7 +108,7 @@ def prepare_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     mutation_cols = [c for c in X.columns if c.endswith("_mut")]
     for col in mutation_cols:
         def encode_mutation(value):
-            if pd.isna(value) or str(value).strip() == "0":
+            if (pd.isna(value) or str(value).strip()) == "0":
                 return 0
             return 1
         X[col] = X[col].apply(encode_mutation)
@@ -123,12 +123,12 @@ class SmartClinicalImputer(BaseEstimator, TransformerMixin):
             if 'neoplasm_histologic_grade' in X.columns:
                 self.median_grade = X['neoplasm_histologic_grade'].median()
             else:
-                raise ValueError(f"Missing neoplasm_histologic_grade column")
+                raise ValueError("Missing neoplasm_histologic_grade column")
 
             if 'tumor_stage' in X.columns:
                 self.median_stage = X['tumor_stage'].median()
             else:
-                raise ValueError(f"Missing tumor_stage column")
+                raise ValueError("Missing tumor_stage column")
         return self
 
     def transform(self, X):
