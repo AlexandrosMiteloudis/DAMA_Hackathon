@@ -11,6 +11,8 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
+from .mappings import KNOWN_CLINICAL_FEATURES
+
 
 def load_metabric_data() -> pd.DataFrame:
     """Downloads and loads the METABRIC dataset from Kaggle.
@@ -34,21 +36,6 @@ def load_metabric_data() -> pd.DataFrame:
     return df
 
 
-
-
-_KNOWN_CLINICAL_FEATURES: frozenset[str] = frozenset({
-    'age_at_diagnosis',
-    'chemotherapy',
-    'cohort',
-    'hormone_therapy',
-    'lymph_nodes_examined_positive',
-    'mutation_count',
-    'neoplasm_histologic_grade',
-    'nottingham_prognostic_index',
-    'radio_therapy',
-    'tumor_size',
-    'tumor_stage',
-})
 
 def count_feature_categories(
     feature_columns: Sequence[str],
@@ -78,7 +65,7 @@ def count_feature_categories(
     for col in feature_columns:
         if col.endswith('_mut'):
             mutation_cols.append(col)
-        elif col in _KNOWN_CLINICAL_FEATURES:
+        elif col in KNOWN_CLINICAL_FEATURES:
             clinical_cols.append(col)
         else:
             mrna_cols.append(col)
