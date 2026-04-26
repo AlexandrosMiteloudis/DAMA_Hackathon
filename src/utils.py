@@ -78,12 +78,14 @@ def count_feature_categories(
 
     return counts, clinical_cols, mrna_cols, mutation_cols
 
-def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
+def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series, set[str]]:
     """Prepares features and target variable for the METABRIC dataset.
 
     Filters for the Luminal A subtype, separates target variables
     to prevent data leakage, encodes specific categorical columns,
     and applies one-hot encoding to any remaining text variables.
+    Finally, it returns the processed feature matrix, target series, and a set of any dropped columns for reference.
+    The dropped columns are the non-numerical ones.
 
     Args:
         df: The raw METABRIC pandas DataFrame.
@@ -92,6 +94,7 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
         A tuple containing:
             - X: The processed feature matrix (pandas DataFrame) ready for ML.
             - y: The target mortality variable (pandas Series).
+            - dropped_columns: A set of column names that were dropped at the last stage as non numerical.
     """
     df = df.copy()
 
@@ -137,10 +140,12 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     if len(categorical_cols) > 0:
         X = pd.get_dummies(X, columns=categorical_cols, drop_first=True)
 
+    before_reduction = X.columns
     # Keep numeric only just to be safe
     X = X.select_dtypes(include=['number'])
     
-    return X, y
+    dropped_cols = set(before_reduction) - set(X.columns)
+    return X, y, dropped_cols
 
 class SmartClinicalImputer(BaseEstimator, TransformerMixin):
     """Imputes missing clinical data (Grade and Stage) using medical heuristics.
