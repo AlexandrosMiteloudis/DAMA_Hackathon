@@ -78,8 +78,21 @@ def count_feature_categories(
 
     return counts, clinical_cols, mrna_cols, mutation_cols
 
-def prepare_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
-    """Prepares features and target variable."""
+def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
+    """Prepares features and target variable for the METABRIC dataset.
+
+    Filters for the Luminal A subtype, separates target variables
+    to prevent data leakage, encodes specific categorical columns,
+    and applies one-hot encoding to any remaining text variables.
+
+    Args:
+        df: The raw METABRIC pandas DataFrame.
+
+    Returns:
+        A tuple containing:
+            - X: The processed feature matrix (pandas DataFrame) ready for ML.
+            - y: The target mortality variable (pandas Series).
+    """
     df = df.copy()
 
     # Subtype filtering
@@ -102,7 +115,7 @@ def prepare_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     X = df.drop(columns=[c for c in leakage_cols if c in df.columns])
     y = df['target_mortality']
 
-    # Encoding
+    # Encoding specific known categorical features
     for col in ["er_status", "her2_status", "pr_status"]:
         if col in X.columns:
             X[col] = (X[col] == "Positive").astype(int)
@@ -119,11 +132,23 @@ def prepare_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
             return 1
         X[col] = X[col].apply(encode_mutation)
 
-    # Keep numeric only
+    # Categorical Encoding for ML Models
+    categorical_cols = X.select_dtypes(include=['object', 'category']).columns
+    if len(categorical_cols) > 0:
+        X = pd.get_dummies(X, columns=categorical_cols, drop_first=True)
+
+    # Keep numeric only just to be safe
     X = X.select_dtypes(include=['number'])
+    
     return X, y
 
 class SmartClinicalImputer(BaseEstimator, TransformerMixin):
+    """Imputes missing clinical data (Grade and Stage) using medical heuristics.
+
+    Leverages Tumor Size and Lymph Nodes to infer missing values. Falls back
+    to the population median if clinical heuristics cannot be applied.
+    """
+    
     def fit(self, X, y=None):
         if isinstance(X, pd.DataFrame):
             if 'neoplasm_histologic_grade' in X.columns:
@@ -172,6 +197,15 @@ class SmartClinicalImputer(BaseEstimator, TransformerMixin):
         return X_out
 
 class DiscordantSignatureAdder(BaseEstimator, TransformerMixin):
+    """Adds a custom discordant molecular score based on specific target genes.
+
+    Calculates a score using 'mmp11', 'col22a1', and 'stat5a'. Validates the
+    presence of these genes strictly to avoid silent failures.
+
+    Raises:
+        ValueError: If required target genes are missing from the dataframe.
+    """
+    
     def fit(self, X, y=None):
         return self
 
@@ -179,7 +213,6 @@ class DiscordantSignatureAdder(BaseEstimator, TransformerMixin):
         X_out = X.copy()
         required_genes = ['stat5a', 'mmp11', 'col22a1']
         
-        # STRICT VALIDATION: This answers his comment about AI agents making silent mistakes
         missing_genes = [gene for gene in required_genes if gene not in X_out.columns]
         if missing_genes:
             raise ValueError(f"Missing genes for Discordant Score: {missing_genes}")
