@@ -130,7 +130,7 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series, 
     mutation_cols = [c for c in X.columns if c.endswith("_mut")]
     for col in mutation_cols:
         def encode_mutation(value):
-            if (pd.isna(value) or str(value).strip()) == "0":
+            if pd.isna(value) or str(value).strip() == "0":
                 return 0
             return 1
         X[col] = X[col].apply(encode_mutation)
