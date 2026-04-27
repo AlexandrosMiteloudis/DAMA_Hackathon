@@ -29,8 +29,6 @@ def load_metabric_data() -> pd.DataFrame:
     return df
 
 
-
-
 _KNOWN_CLINICAL_FEATURES: frozenset[str] = frozenset({
     'age_at_diagnosis',
     'chemotherapy',
