@@ -10,6 +10,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer
 
 from .mappings import KNOWN_CLINICAL_FEATURES
 
@@ -127,7 +128,7 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     mutation_cols = [c for c in X.columns if c.endswith("_mut")]
     for col in mutation_cols:
         def encode_mutation(value):
-            if (pd.isna(value) or str(value).strip()) == "0":
+            if pd.isna(value) or str(value).strip() == "0":
                 return 0
             return 1
         X[col] = X[col].apply(encode_mutation)
@@ -135,11 +136,11 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     # Categorical Encoding for ML Models
     categorical_cols = X.select_dtypes(include=['object', 'category']).columns
     if len(categorical_cols) > 0:
-        # ΕΔΩ ΕΙΝΑΙ ΤΟ FIX: Προσθέσαμε dtype=int για να μην τα κόψει το select_dtypes
         X = pd.get_dummies(X, columns=categorical_cols, drop_first=True, dtype=int)
 
-    # Keep numeric only just to be safe
-    X = X.select_dtypes(include=['number'])
+    non_numeric = X.select_dtypes(exclude=['number']).columns
+    if len(non_numeric) > 0:
+        raise ValueError(f"Pipeline error: Non-numeric columns remain and would be silently dropped: {list(non_numeric)}")
     
     return X, y
 
@@ -223,11 +224,34 @@ class DiscordantSignatureAdder(BaseEstimator, TransformerMixin):
         )
         return X_out
 
-def build_preprocessor() -> Pipeline:
-    """Returns a simple, clean pipeline."""
+def build_preprocessor(X: pd.DataFrame) -> Pipeline:
+    """Returns a smart pipeline that scales only continuous features."""
+    
+    # Dynamically separate continuous features (>2 unique values) from dummy features
+    continuous_cols = [col for col in X.columns if X[col].nunique() > 2]
+    continuous_cols.append('discordant_molecular_score')
+    dummy_cols = [col for col in X.columns if col not in continuous_cols]
+
+    # Define specific transformations for each feature type
+    numeric_transformer = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler()) # Apply scaling to continuous variables
+    ])
+
+    categorical_transformer = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="median"))
+        # Passthrough: No scaler applied here, preserving the 0/1 range for dummies
+    ])
+
+    # Combine transformations using ColumnTransformer
+    col_transformer = ColumnTransformer(
+        transformers=[
+            ("num", numeric_transformer, continuous_cols),
+            ("cat", categorical_transformer, dummy_cols)
+        ])
+
     return Pipeline(steps=[
         ("signature", DiscordantSignatureAdder()),
         ("smart_imputer", SmartClinicalImputer()),
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler())
+        ("col_transform", col_transformer)
     ])
