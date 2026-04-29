@@ -60,6 +60,12 @@ def load_metabric_data() -> pd.DataFrame:
     ]
     df.drop(columns=[c for c in leakage_cols if c in df.columns], inplace=True)
 
+    # Redundant columns
+    remove_cols = [
+        "cancer_type", "pam50_+_claudin-low_subtype"
+    ]
+    df.drop(columns=[c for c in remove_cols if c in df.columns], inplace=True)
+
     print(f"Original dataset was preprocessed, given a new shape: {df.shape}")
 
     return df_original, df
@@ -144,16 +150,23 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
             return 1
         X[col] = X[col].apply(encode_mutation)
 
+    original_column_names = X.columns.tolist()
+
     # Categorical Encoding for ML Models
     categorical_cols = X.select_dtypes(include=['object', 'category']).columns
     if len(categorical_cols) > 0:
+        print("\nApplying one-hot encoding to categorical columns: ")
+        print(pd.Series({col: f"{X[col].nunique()} levels" for col in categorical_cols}))        
+        print("\n---------\n")
+        
         X = pd.get_dummies(X, columns=categorical_cols, drop_first=True, dtype=int)
+        print("\nNew columns after one-hot encoding:", *X.columns.difference(original_column_names).tolist(), sep="\n")
 
     non_numeric = X.select_dtypes(exclude=['number']).columns
     if len(non_numeric) > 0:
         raise ValueError(f"Pipeline error: Non-numeric columns remain and would be silently dropped: {list(non_numeric)}")
     
-    return X, y
+    return X, y, original_column_names, categorical_cols
 
 class SmartClinicalImputer(BaseEstimator, TransformerMixin):
     """Imputes missing clinical data (Grade and Stage) using medical heuristics.

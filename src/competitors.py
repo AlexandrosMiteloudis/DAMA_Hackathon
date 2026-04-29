@@ -44,22 +44,21 @@ def map_competitor_features(available_columns, competitor_list):
     Prioritizes mRNA expression over Mutation status to reach an exact count.
     """
     mapped = []
-    available_set = set(available_columns)
+    available_set = list(set(available_columns.to_list()))
 
-    print("Available columns:", available_columns[0:5])
-    print("Competitors:", competitor_list[0:5])
+    print("Available columns (first 5): ", available_columns[0:5])
+    print("Competitor's columns (first 5):", competitor_list[0:5])
 
     for gene in competitor_list:
         # Try to find the mRNA column
         if gene in available_set:
-            print("Gene added:", gene)
             mapped.append(gene)
         # If not found, try the Mutation column
         elif f"{gene}_mut" in available_set:
             print("Gene addded (mutation):", gene)
             mapped.append(f"{gene}_mut")
 
-    print(f"Strict Mapping: Found exactly {len(mapped)} features for the {len(competitor_list)} target genes.")
+    print(f"\nStrict Mapping: \nFound exactly {len(mapped)} features for the {len(competitor_list)} target variables.")
     return mapped
 
 def export_results(
