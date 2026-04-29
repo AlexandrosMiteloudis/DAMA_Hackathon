@@ -16,7 +16,7 @@ from .mappings import KNOWN_CLINICAL_FEATURES
 
 
 def load_metabric_data() -> pd.DataFrame:
-    """Downloads and loads the METABRIC dataset from Kaggle.
+    """Downloads and loads the METABRIC dataset from Kaggle applying minimal preprocessing.
 
     Fetches the breast cancer gene expression dataset containing RNA and
     mutation data for ~2,000 primary breast cancer samples.
@@ -113,15 +113,16 @@ def count_feature_categories(
 
     return counts, clinical_cols, mrna_cols, mutation_cols
 
-def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
+def build_metabric_pipeline(df: pd.DataFrame, kind: str = "") -> Tuple[pd.DataFrame, pd.Series]:
     """Prepares features and target variable for the METABRIC dataset.
 
-    Filters for the Luminal A subtype, separates target variables
-    to prevent data leakage, encodes specific categorical columns,
-    and applies one-hot encoding to any remaining text variables.
+    Given subset of data related to the Luminal A subtype instances,
+    it separates target variables to prevent data leakage, and either keeps numerical columns (kind == "pure_numerical")
+    or encodes specific categorical columns, applies one-hot encoding to any remaining text variables.
 
     Args:
         df: The raw METABRIC pandas DataFrame.
+        kind (optional): The type of pipeline to build ("pure_numerical" or other).
 
     Returns:
         A tuple containing:
@@ -133,39 +134,50 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     X = df.drop(columns=['target_mortality'])
     y = df['target_mortality']
 
-    # Encoding specific known categorical features
-    for col in ["er_status", "her2_status", "pr_status"]:
-        if col in X.columns:
-            X[col] = (X[col] == "Positive").astype(int)
+    original_column_names = X.columns.tolist()
 
     if "cellularity" in X.columns:
         X["cellularity"] = X["cellularity"].map({"Low": 0, "Moderate": 1, "High": 2})
 
-    # Mutation binarization
-    mutation_cols = [c for c in X.columns if c.endswith("_mut")]
-    for col in mutation_cols:
-        def encode_mutation(value):
-            if pd.isna(value) or str(value).strip() == "0":
-                return 0
-            return 1
-        X[col] = X[col].apply(encode_mutation)
 
-    original_column_names = X.columns.tolist()
+    if kind == "pure_numerical":
 
-    # Categorical Encoding for ML Models
-    categorical_cols = X.select_dtypes(include=['object', 'category']).columns
-    if len(categorical_cols) > 0:
-        print("\nApplying one-hot encoding to categorical columns: ")
-        print(pd.Series({col: f"{X[col].nunique()} levels" for col in categorical_cols}))        
-        print("\n---------\n")
-        
-        X = pd.get_dummies(X, columns=categorical_cols, drop_first=True, dtype=int)
-        print("\nNew columns after one-hot encoding:", *X.columns.difference(original_column_names).tolist(), sep="\n")
+        numeric_cols = X.select_dtypes(include=['number']).columns.tolist()
+        X = X[numeric_cols]
+        categorical_cols = []
 
-    non_numeric = X.select_dtypes(exclude=['number']).columns
-    if len(non_numeric) > 0:
-        raise ValueError(f"Pipeline error: Non-numeric columns remain and would be silently dropped: {list(non_numeric)}")
-    
+    else:
+
+        # Encoding specific known categorical features
+        for col in ["er_status", "her2_status", "pr_status"]:
+            if col in X.columns:
+                X[col] = (X[col] == "Positive").astype(int)
+
+        # Mutation binarization
+        mutation_cols = [c for c in X.columns if c.endswith("_mut")]
+        for col in mutation_cols:
+            def encode_mutation(value):
+                if pd.isna(value) or str(value).strip() == "0":
+                    return 0
+                return 1
+            X[col] = X[col].apply(encode_mutation)
+
+
+        # Categorical Encoding for ML Models
+        categorical_cols = X.select_dtypes(include=['object', 'category']).columns
+        if len(categorical_cols) > 0:
+            print("\nApplying one-hot encoding to categorical columns: ")
+            print(pd.Series({col: f"{X[col].nunique()} levels" for col in categorical_cols}))        
+            print("\n---------\n")
+            
+            X = pd.get_dummies(X, columns=categorical_cols, drop_first=True, dtype=int)
+            print("\nNew columns after one-hot encoding:", *X.columns.difference(original_column_names).tolist(), sep="\n")
+
+        non_numeric = X.select_dtypes(exclude=['number']).columns
+        if len(non_numeric) > 0:
+            raise ValueError(f"Pipeline error: Non-numeric columns remain and would be silently dropped: {list(non_numeric)}")
+
+    # out of if-else block
     return X, y, original_column_names, categorical_cols
 
 class SmartClinicalImputer(BaseEstimator, TransformerMixin):
