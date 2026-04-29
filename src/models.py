@@ -20,11 +20,11 @@ RANDOM_STATE = 42
 
 SKLEARN_MODELS_SEARCH_SPACE = {
     "Logistic Regression": (
-        LogisticRegression(max_iter=100, penalty="elasticnet", solver="saga", random_state=RANDOM_STATE),
+        LogisticRegression(max_iter=100, solver="saga", random_state=RANDOM_STATE),
         {
             "classifier__C": [0.01, 0.1, 1],
             "classifier__class_weight": [None, "balanced"],
-            "classifier__l1_ratio":(0, 0.5, 1)
+            "classifier__l1_ratio":[0, 0.5, 1]
         },
     ),
     "Random Forest": (
