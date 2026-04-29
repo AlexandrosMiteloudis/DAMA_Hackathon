@@ -22,9 +22,10 @@ def load_metabric_data() -> pd.DataFrame:
     mutation data for ~2,000 primary breast cancer samples.
 
     Returns:
-        A pandas DataFrame with METABRIC clinical, mutation, and RNA data.
+        - A pandas DataFrame with METABRIC clinical, mutation, and RNA data.
+        - A pandas Dataframe with some initial preprocrssing applied for the purposes of our paper.
     """
-    print('Fetching METABRIC dataset from Kaggle...')
+    print('Fetching METABRIC dataset from Kaggle...\n')
 
     dataset_dir = kagglehub.dataset_download(
         'raghadalharbi/breast-cancer-gene-expression-profiles-metabric'
@@ -32,9 +33,36 @@ def load_metabric_data() -> pd.DataFrame:
 
     csv_path = Path(dataset_dir) / 'METABRIC_RNA_Mutation.csv'
 
-    df = pd.read_csv(csv_path, low_memory=False)
+    df_original = pd.read_csv(csv_path, low_memory=False)
+    print(f"Original dataset was loaded, shape: {df_original.shape}")
+          
+    # Minimal preprocessing
+    df = df_original.copy()
 
-    return df
+
+    # Subtype filtering
+    df = df_original.copy()
+    df = df[df['pam50_+_claudin-low_subtype'] == 'LumA'].copy()
+
+    # Target encoding
+    def _encode_mortality(value) -> int:
+        if str(value).strip().lower() == "died of disease":
+            return 1
+        return 0
+
+    df['target_mortality'] = df['death_from_cancer'].apply(_encode_mortality)
+
+    # Leakage removal
+    leakage_cols = [
+        'patient_id', 'overall_survival_months', 'overall_survival',
+        'death_from_cancer', 'chemotherapy',
+        'hormone_therapy', 'radio_therapy', 'type_of_breast_surgery'
+    ]
+    df.drop(columns=[c for c in leakage_cols if c in df.columns], inplace=True)
+
+    print(f"Original dataset was preprocessed, given a new shape: {df.shape}")
+
+    return df_original, df
 
 
 
@@ -95,26 +123,6 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
             - y: The target mortality variable (pandas Series).
     """
     df = df.copy()
-
-    # Subtype filtering
-    df = df[df['pam50_+_claudin-low_subtype'] == 'LumA'].copy()
-
-    # Target encoding
-    def encode_mortality(value) -> int:
-        if str(value).strip().lower() == "died of disease":
-            return 1
-        return 0
-
-    df['target_mortality'] = df['death_from_cancer'].apply(encode_mortality)
-
-    # Leakage removal
-    leakage_cols = [
-        'patient_id', 'overall_survival_months', 'overall_survival',
-        'death_from_cancer', 'target_mortality', 'chemotherapy',
-        'hormone_therapy', 'radio_therapy', 'type_of_breast_surgery'
-    ]
-    X = df.drop(columns=[c for c in leakage_cols if c in df.columns])
-    y = df['target_mortality']
 
     # Encoding specific known categorical features
     for col in ["er_status", "her2_status", "pr_status"]:
