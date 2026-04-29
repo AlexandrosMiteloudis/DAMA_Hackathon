@@ -124,6 +124,9 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     """
     df = df.copy()
 
+    X = df.drop(columns=['target_mortality'])
+    y = df['target_mortality']
+
     # Encoding specific known categorical features
     for col in ["er_status", "her2_status", "pr_status"]:
         if col in X.columns:
