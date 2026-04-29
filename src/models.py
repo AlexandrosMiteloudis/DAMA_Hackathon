@@ -18,9 +18,9 @@ from imodels import (
 RANDOM_STATE = 42
 
 
-MODELS_WITH_SEARCH_SPACE = {
+SKLEARN_MODELS_SEARCH_SPACE = {
     "Logistic Regression": (
-        LogisticRegression(max_iter=1_000, penalty="elasticnet", solver="saga", random_state=RANDOM_STATE),
+        LogisticRegression(max_iter=100, penalty="elasticnet", solver="saga", random_state=RANDOM_STATE),
         {
             "classifier__C": [0.01, 0.1, 1],
             "classifier__class_weight": [None, "balanced"],
@@ -46,7 +46,7 @@ MODELS_WITH_SEARCH_SPACE = {
 }
 
 
-INTERPRETABLE_MODELS_WITH_SEARCH_SPACE = {
+INTERPRETABLE_MODELS_SEARCH_SPACE = {
    
     "EBM": (
         ExplainableBoostingClassifier(random_state=RANDOM_STATE),

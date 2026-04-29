@@ -16,15 +16,16 @@ from .mappings import KNOWN_CLINICAL_FEATURES
 
 
 def load_metabric_data() -> pd.DataFrame:
-    """Downloads and loads the METABRIC dataset from Kaggle.
+    """Downloads and loads the METABRIC dataset from Kaggle applying minimal preprocessing.
 
     Fetches the breast cancer gene expression dataset containing RNA and
     mutation data for ~2,000 primary breast cancer samples.
 
     Returns:
-        A pandas DataFrame with METABRIC clinical, mutation, and RNA data.
+        - A pandas DataFrame with METABRIC clinical, mutation, and RNA data.
+        - A pandas Dataframe with some initial preprocrssing applied for the purposes of our paper.
     """
-    print('Fetching METABRIC dataset from Kaggle...')
+    print('Fetching METABRIC dataset from Kaggle...\n')
 
     dataset_dir = kagglehub.dataset_download(
         'raghadalharbi/breast-cancer-gene-expression-profiles-metabric'
@@ -32,9 +33,42 @@ def load_metabric_data() -> pd.DataFrame:
 
     csv_path = Path(dataset_dir) / 'METABRIC_RNA_Mutation.csv'
 
-    df = pd.read_csv(csv_path, low_memory=False)
+    df_original = pd.read_csv(csv_path, low_memory=False)
+    print(f"Original dataset was loaded, shape: {df_original.shape}")
+          
+    # Minimal preprocessing
+    df = df_original.copy()
 
-    return df
+
+    # Subtype filtering
+    df = df_original.copy()
+    df = df[df['pam50_+_claudin-low_subtype'] == 'LumA'].copy()
+
+    # Target encoding
+    def _encode_mortality(value) -> int:
+        if str(value).strip().lower() == "died of disease":
+            return 1
+        return 0
+
+    df['target_mortality'] = df['death_from_cancer'].apply(_encode_mortality)
+
+    # Leakage removal
+    leakage_cols = [
+        'patient_id', 'overall_survival_months', 'overall_survival',
+        'death_from_cancer', 'chemotherapy',
+        'hormone_therapy', 'radio_therapy', 'type_of_breast_surgery'
+    ]
+    df.drop(columns=[c for c in leakage_cols if c in df.columns], inplace=True)
+
+    # Redundant columns
+    remove_cols = [
+        "cancer_type", "pam50_+_claudin-low_subtype"
+    ]
+    df.drop(columns=[c for c in remove_cols if c in df.columns], inplace=True)
+
+    print(f"Original dataset was preprocessed, given a new shape: {df.shape}")
+
+    return df_original, df
 
 
 
@@ -79,15 +113,16 @@ def count_feature_categories(
 
     return counts, clinical_cols, mrna_cols, mutation_cols
 
-def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
+def build_metabric_pipeline(df: pd.DataFrame, kind: str = "") -> Tuple[pd.DataFrame, pd.Series]:
     """Prepares features and target variable for the METABRIC dataset.
 
-    Filters for the Luminal A subtype, separates target variables
-    to prevent data leakage, encodes specific categorical columns,
-    and applies one-hot encoding to any remaining text variables.
+    Given subset of data related to the Luminal A subtype instances,
+    it separates target variables to prevent data leakage, and either keeps numerical columns (kind == "pure_numerical")
+    or encodes specific categorical columns, applies one-hot encoding to any remaining text variables.
 
     Args:
         df: The raw METABRIC pandas DataFrame.
+        kind (optional): The type of pipeline to build ("pure_numerical" or other).
 
     Returns:
         A tuple containing:
@@ -96,53 +131,54 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     """
     df = df.copy()
 
-    # Subtype filtering
-    df = df[df['pam50_+_claudin-low_subtype'] == 'LumA'].copy()
-
-    # Target encoding
-    def encode_mortality(value) -> int:
-        if str(value).strip().lower() == "died of disease":
-            return 1
-        return 0
-
-    df['target_mortality'] = df['death_from_cancer'].apply(encode_mortality)
-
-    # Leakage removal
-    leakage_cols = [
-        'patient_id', 'overall_survival_months', 'overall_survival',
-        'death_from_cancer', 'target_mortality', 'chemotherapy',
-        'hormone_therapy', 'radio_therapy', 'type_of_breast_surgery'
-    ]
-    X = df.drop(columns=[c for c in leakage_cols if c in df.columns])
+    X = df.drop(columns=['target_mortality'])
     y = df['target_mortality']
 
-    # Encoding specific known categorical features
-    for col in ["er_status", "her2_status", "pr_status"]:
-        if col in X.columns:
-            X[col] = (X[col] == "Positive").astype(int)
+    original_column_names = X.columns.tolist()
 
     if "cellularity" in X.columns:
         X["cellularity"] = X["cellularity"].map({"Low": 0, "Moderate": 1, "High": 2})
 
-    # Mutation binarization
-    mutation_cols = [c for c in X.columns if c.endswith("_mut")]
-    for col in mutation_cols:
-        def encode_mutation(value):
-            if pd.isna(value) or str(value).strip() == "0":
-                return 0
-            return 1
-        X[col] = X[col].apply(encode_mutation)
 
-    # Categorical Encoding for ML Models
-    categorical_cols = X.select_dtypes(include=['object', 'category']).columns
-    if len(categorical_cols) > 0:
-        X = pd.get_dummies(X, columns=categorical_cols, drop_first=True, dtype=int)
+    if kind == "pure_numerical":
 
-    non_numeric = X.select_dtypes(exclude=['number']).columns
-    if len(non_numeric) > 0:
-        raise ValueError(f"Pipeline error: Non-numeric columns remain and would be silently dropped: {list(non_numeric)}")
-    
-    return X, y
+        numeric_cols = X.select_dtypes(include=['number']).columns.tolist()
+        X = X[numeric_cols]
+        categorical_cols = []
+
+    else:
+
+        # Encoding specific known categorical features
+        for col in ["er_status", "her2_status", "pr_status"]:
+            if col in X.columns:
+                X[col] = (X[col] == "Positive").astype(int)
+
+        # Mutation binarization
+        mutation_cols = [c for c in X.columns if c.endswith("_mut")]
+        for col in mutation_cols:
+            def encode_mutation(value):
+                if pd.isna(value) or str(value).strip() == "0":
+                    return 0
+                return 1
+            X[col] = X[col].apply(encode_mutation)
+
+
+        # Categorical Encoding for ML Models
+        categorical_cols = X.select_dtypes(include=['object', 'category']).columns
+        if len(categorical_cols) > 0:
+            print("\nApplying one-hot encoding to categorical columns: ")
+            print(pd.Series({col: f"{X[col].nunique()} levels" for col in categorical_cols}))        
+            print("\n---------\n")
+            
+            X = pd.get_dummies(X, columns=categorical_cols, drop_first=True, dtype=int)
+            print("\nNew columns after one-hot encoding:", *X.columns.difference(original_column_names).tolist(), sep="\n")
+
+        non_numeric = X.select_dtypes(exclude=['number']).columns
+        if len(non_numeric) > 0:
+            raise ValueError(f"Pipeline error: Non-numeric columns remain and would be silently dropped: {list(non_numeric)}")
+
+    # out of if-else block
+    return X, y, original_column_names, categorical_cols
 
 class SmartClinicalImputer(BaseEstimator, TransformerMixin):
     """Imputes missing clinical data (Grade and Stage) using medical heuristics.
@@ -224,13 +260,18 @@ class DiscordantSignatureAdder(BaseEstimator, TransformerMixin):
         )
         return X_out
 
-def build_preprocessor(X: pd.DataFrame) -> Pipeline:
-    """Returns a smart pipeline that scales only continuous features."""
+def build_preprocessor_with_augmentation(X: pd.DataFrame) -> Pipeline:
+    """Returns a smart pipeline that scales only continuous features and extends it with a discordant molecular score."""
     
     # Dynamically separate continuous features (>2 unique values) from dummy features
     continuous_cols = [col for col in X.columns if X[col].nunique() > 2]
     continuous_cols.append('discordant_molecular_score')
     dummy_cols = [col for col in X.columns if col not in continuous_cols]
+
+    # we impute missing numeric values with the median of that specific feature.
+    missing_values = X.isnull().sum()
+    missing_cols = missing_values[missing_values > 0]
+    print("Missing columns report: \n", missing_cols)
 
     # Define specific transformations for each feature type
     numeric_transformer = Pipeline(steps=[
@@ -254,4 +295,39 @@ def build_preprocessor(X: pd.DataFrame) -> Pipeline:
         ("signature", DiscordantSignatureAdder()),
         ("smart_imputer", SmartClinicalImputer()),
         ("col_transform", col_transformer)
+    ])
+
+def build_preprocessor_pure_numerical(X: pd.DataFrame) -> Pipeline:
+    """Returns a simple pipeline that scales all features without augmentation."""
+
+    # we impute missing numeric values with the median of that specific feature.
+    missing_values = X.isnull().sum()
+    missing_cols = missing_values[missing_values > 0]
+    print("Missing columns report: \n", missing_cols)
+
+
+    # detect numerical columns
+    numeric_columns = X.select_dtypes(include="number").columns
+
+    # introduce preprocessing pipelines
+    numeric_transformer = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler())
+        ]
+    )
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", numeric_transformer, numeric_columns)
+        ],
+        remainder="passthrough"
+    )
+
+    preprocessor.set_output(transform="pandas")
+    preprocessor.verbose_feature_names_out = False
+    
+
+    return Pipeline(steps=[
+        ("num_transform", preprocessor)
     ])
