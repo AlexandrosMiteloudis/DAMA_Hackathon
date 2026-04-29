@@ -260,13 +260,18 @@ class DiscordantSignatureAdder(BaseEstimator, TransformerMixin):
         )
         return X_out
 
-def build_preprocessor(X: pd.DataFrame) -> Pipeline:
-    """Returns a smart pipeline that scales only continuous features."""
+def build_preprocessor_with_augmentation(X: pd.DataFrame) -> Pipeline:
+    """Returns a smart pipeline that scales only continuous features and extends it with a discordant molecular score."""
     
     # Dynamically separate continuous features (>2 unique values) from dummy features
     continuous_cols = [col for col in X.columns if X[col].nunique() > 2]
     continuous_cols.append('discordant_molecular_score')
     dummy_cols = [col for col in X.columns if col not in continuous_cols]
+
+    # we impute missing numeric values with the median of that specific feature.
+    missing_values = X.isnull().sum()
+    missing_cols = missing_values[missing_values > 0]
+    print("Missing columns report: \n", missing_cols)
 
     # Define specific transformations for each feature type
     numeric_transformer = Pipeline(steps=[
@@ -290,4 +295,39 @@ def build_preprocessor(X: pd.DataFrame) -> Pipeline:
         ("signature", DiscordantSignatureAdder()),
         ("smart_imputer", SmartClinicalImputer()),
         ("col_transform", col_transformer)
+    ])
+
+def build_preprocessor_pure_numerical(X: pd.DataFrame) -> Pipeline:
+    """Returns a simple pipeline that scales all features without augmentation."""
+
+    # we impute missing numeric values with the median of that specific feature.
+    missing_values = X.isnull().sum()
+    missing_cols = missing_values[missing_values > 0]
+    print("Missing columns report: \n", missing_cols)
+
+
+    # detect numerical columns
+    numeric_columns = X.select_dtypes(include="number").columns
+
+    # introduce preprocessing pipelines
+    numeric_transformer = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler())
+        ]
+    )
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", numeric_transformer, numeric_columns)
+        ],
+        remainder="passthrough"
+    )
+
+    preprocessor.set_output(transform="pandas")
+    preprocessor.verbose_feature_names_out = False
+    
+
+    return Pipeline(steps=[
+        ("num_transform", preprocessor)
     ])
