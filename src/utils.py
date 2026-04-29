@@ -10,6 +10,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer
 
 from .mappings import KNOWN_CLINICAL_FEATURES
 
@@ -78,14 +79,12 @@ def count_feature_categories(
 
     return counts, clinical_cols, mrna_cols, mutation_cols
 
-def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series, set[str]]:
+def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     """Prepares features and target variable for the METABRIC dataset.
 
     Filters for the Luminal A subtype, separates target variables
     to prevent data leakage, encodes specific categorical columns,
     and applies one-hot encoding to any remaining text variables.
-    Finally, it returns the processed feature matrix, target series, and a set of any dropped columns for reference.
-    The dropped columns are the non-numerical ones.
 
     Args:
         df: The raw METABRIC pandas DataFrame.
@@ -94,7 +93,6 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series, 
         A tuple containing:
             - X: The processed feature matrix (pandas DataFrame) ready for ML.
             - y: The target mortality variable (pandas Series).
-            - dropped_columns: A set of column names that were dropped at the last stage as non numerical.
     """
     df = df.copy()
 
@@ -138,14 +136,13 @@ def build_metabric_pipeline(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series, 
     # Categorical Encoding for ML Models
     categorical_cols = X.select_dtypes(include=['object', 'category']).columns
     if len(categorical_cols) > 0:
-        X = pd.get_dummies(X, columns=categorical_cols, drop_first=True)
+        X = pd.get_dummies(X, columns=categorical_cols, drop_first=True, dtype=int)
 
-    before_reduction = X.columns
-    # Keep numeric only just to be safe
-    X = X.select_dtypes(include=['number'])
+    non_numeric = X.select_dtypes(exclude=['number']).columns
+    if len(non_numeric) > 0:
+        raise ValueError(f"Pipeline error: Non-numeric columns remain and would be silently dropped: {list(non_numeric)}")
     
-    dropped_cols = set(before_reduction) - set(X.columns)
-    return X, y, dropped_cols
+    return X, y
 
 class SmartClinicalImputer(BaseEstimator, TransformerMixin):
     """Imputes missing clinical data (Grade and Stage) using medical heuristics.
@@ -227,11 +224,34 @@ class DiscordantSignatureAdder(BaseEstimator, TransformerMixin):
         )
         return X_out
 
-def build_preprocessor() -> Pipeline:
-    """Returns a simple, clean pipeline."""
+def build_preprocessor(X: pd.DataFrame) -> Pipeline:
+    """Returns a smart pipeline that scales only continuous features."""
+    
+    # Dynamically separate continuous features (>2 unique values) from dummy features
+    continuous_cols = [col for col in X.columns if X[col].nunique() > 2]
+    continuous_cols.append('discordant_molecular_score')
+    dummy_cols = [col for col in X.columns if col not in continuous_cols]
+
+    # Define specific transformations for each feature type
+    numeric_transformer = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="median")),
+        ("scaler", StandardScaler()) # Apply scaling to continuous variables
+    ])
+
+    categorical_transformer = Pipeline(steps=[
+        ("imputer", SimpleImputer(strategy="median"))
+        # Passthrough: No scaler applied here, preserving the 0/1 range for dummies
+    ])
+
+    # Combine transformations using ColumnTransformer
+    col_transformer = ColumnTransformer(
+        transformers=[
+            ("num", numeric_transformer, continuous_cols),
+            ("cat", categorical_transformer, dummy_cols)
+        ])
+
     return Pipeline(steps=[
         ("signature", DiscordantSignatureAdder()),
         ("smart_imputer", SmartClinicalImputer()),
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler())
+        ("col_transform", col_transformer)
     ])
