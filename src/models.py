@@ -48,14 +48,14 @@ SKLEARN_MODELS_SEARCH_SPACE = {
 
 INTERPRETABLE_MODELS_SEARCH_SPACE = {
    
-    "EBM": (
-        ExplainableBoostingClassifier(random_state=RANDOM_STATE),
-        {
-            "classifier__interactions": [0, 5, 10],
-            "classifier__learning_rate": [0.01, 0.05, 0.1],
-            "classifier__max_bins": [64, 128],
-        },
-    ),
+    # "EBM": (
+    #     ExplainableBoostingClassifier(random_state=RANDOM_STATE),
+    #     {
+    #         "classifier__interactions": [0, 5, 10],
+    #         "classifier__learning_rate": [0.01, 0.05, 0.1],
+    #         "classifier__max_bins": [64, 128],
+    #     },
+    # ),
   
     "FIGS": (
         FIGSClassifier(random_state=RANDOM_STATE),
@@ -105,12 +105,12 @@ INTERPRETABLE_MODELS_SEARCH_SPACE = {
         },
     ),
  
-    "TreeGAM": (
-        TreeGAMClassifier(random_state=RANDOM_STATE),
-        {
-            "classifier__n_boosting_rounds": [50, 100, 200],
-            "classifier__learning_rate": [0.01, 0.05, 0.1],
-            "classifier__max_leaf_nodes": [2, 3],
-        },
-    ),
+    # "TreeGAM": (
+    #     TreeGAMClassifier(random_state=RANDOM_STATE),
+    #     {
+    #         "classifier__n_boosting_rounds": [50, 100, 200],
+    #         "classifier__learning_rate": [0.01, 0.05, 0.1],
+    #         "classifier__max_leaf_nodes": [2, 3],
+    #     },
+    # ),
 }
