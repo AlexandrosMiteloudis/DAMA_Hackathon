@@ -75,14 +75,14 @@ INTERPRETABLE_MODELS_SEARCH_SPACE = {
         },
     ),
   
-    "SkopeRules": (
-        SkopeRulesClassifier(random_state=RANDOM_STATE),
-        {
-            "classifier__n_estimators": [100, 200, 500],
-            "classifier__max_depth": [2, 3, 4],
-            "classifier__precision_min": [0.55, 0.7],
-        },
-    ),
+    # "SkopeRules": (
+    #     SkopeRulesClassifier(random_state=RANDOM_STATE),
+    #     {
+    #         "classifier__n_estimators": [100, 200, 500],
+    #         "classifier__max_depth": [2, 3, 4],
+    #         "classifier__precision_min": [0.55, 0.7],
+    #     },
+    # ),
  
     "BoostedRules": (
         BoostedRulesClassifier(
