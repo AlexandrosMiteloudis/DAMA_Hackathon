@@ -7,7 +7,6 @@ Link: https://doi.org/10.1101/105403
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     average_precision_score,
@@ -16,7 +15,6 @@ from sklearn.metrics import (
     precision_recall_curve,
     roc_curve,
 )
-from sklearn.model_selection import GridSearchCV
 
 def get_rezaeian_features():
     """Returns the exact list of 39 genes identified in the Rezaeian study."""
