@@ -17,7 +17,9 @@ from sklearn.metrics import (
 )
 
 def get_rezaeian_features():
-    """Returns the exact list of 39 genes identified in the Rezaeian study."""
+    """Returns the exact list of 39 genes identified in the Rezaeian et al. study.
+    
+    Link: https://doi.org/10.12688/f1000research.9417.1"""
     return [
         'bbc3', 'cdkn2a', 'wfdc2', 'hes2', 'hsd3b7', 'rps6kb1', 'e2f6', 'srd5a3',
         'mmp25', 'mmp21', 'dnah5', 'sf3b1', 'chek2', 'sik1', 'bmpr2', 'hey1',
@@ -26,6 +28,16 @@ def get_rezaeian_features():
         'map3k5', 'prkg1', 'terc', 'hes6', 'nrarp', 'agtr2', 'pde4dip'
     ]
 
+def get_kurniadi_features():
+    """Returns the exact list of 15 genes identified in the Kurniadi and Saputri study.
+    
+    Link: 10.1109/ICIMTECH63123.2024.10780791"""
+
+    return  [
+        'rab25', 'eif5a2', 'pik3ca', 'kit', 'fgf1', 'myc',
+        'egfr', 'notch3', 'kras', 'akt1', 'erbb2', 'pik3r1', 
+        'ccne1', 'akt2', 'aurka'
+    ]
 def map_competitor_features(available_columns, competitor_list):
     """
     Maps the gene list to exactly one column per gene.
