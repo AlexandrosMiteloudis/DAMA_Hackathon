@@ -6,7 +6,7 @@ Binary classification pipeline for predicting breast cancer mortality in Luminal
 
 Data loading (`load_metabric_data`) applies the following steps before any modeling:
 
-1. **Subtype filtering** — Only Luminal A (`LumA`) patients are kept (~680 samples).
+1. **Subtype filtering** — Only Luminal A (`LumA`) patients are kept (679 samples).
 2. **Target encoding** — `death_from_cancer == "Died of Disease"` → 1, everything else → 0 (stored as `target_mortality`). This produces an imbalanced binary target (~21.5% positive class).
 3. **Leakage removal** — Columns that would leak outcome information are dropped: `patient_id`, `overall_survival_months`, `overall_survival`, `death_from_cancer`, `chemotherapy`, `hormone_therapy`, `radio_therapy`, `type_of_breast_surgery`.
 4. **Redundant column removal** — `cancer_type` and `pam50_+_claudin-low_subtype` (constant after filtering) are dropped.
