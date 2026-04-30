@@ -69,20 +69,20 @@ INTERPRETABLE_MODELS_SEARCH_SPACE = {
     "RuleFit": (
         RuleFitClassifier(random_state=RANDOM_STATE),
         {
-            "classifier__n_estimators": [100, 200, 400],
+            "classifier__alpha": [0.001, 0.01, 0.1],
             "classifier__tree_size": [2, 3, 4],
-            "classifier__max_rules": [15, 30],
+            "classifier__memory_par": [0.01, 0.1],
         },
     ),
   
-    "SkopeRules": (
-        SkopeRulesClassifier(random_state=RANDOM_STATE),
-        {
-            "classifier__n_estimators": [100, 200, 500],
-            "classifier__max_depth": [2, 3, 4],
-            "classifier__precision_min": [0.55, 0.7],
-        },
-    ),
+    # "SkopeRules": (
+    #     SkopeRulesClassifier(random_state=RANDOM_STATE),
+    #     {
+    #         "classifier__n_estimators": [100, 200, 500],
+    #         "classifier__max_depth": [2, 3, 4],
+    #         "classifier__precision_min": [0.55, 0.7],
+    #     },
+    # ),
  
     "BoostedRules": (
         BoostedRulesClassifier(

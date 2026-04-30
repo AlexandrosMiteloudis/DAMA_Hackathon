@@ -84,7 +84,6 @@ raw_data/
 processed_data/
 models/
 checkpoints/
-results/
 output/
 figures/
 saved_models/

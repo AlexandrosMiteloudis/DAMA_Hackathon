@@ -7,7 +7,7 @@ Binary classification pipeline for predicting breast cancer mortality in Luminal
 Data loading (`load_metabric_data`) applies the following steps before any modeling:
 
 1. **Subtype filtering** — Only Luminal A (`LumA`) patients are kept (~680 samples).
-2. **Target encoding** — `death_from_cancer == "Died of Disease"` → 1, everything else → 0 (stored as `target_mortality`). This produces an imbalanced binary target (~21.5% positive class).
+2. **Target encoding** — `death_from_cancer == "Died of Disease"` → 1, everything else → 0 (stored as `target_mortality`). This produces an imbalanced binary target (~18% positive class).
 3. **Leakage removal** — Columns that would leak outcome information are dropped: `patient_id`, `overall_survival_months`, `overall_survival`, `death_from_cancer`, `chemotherapy`, `hormone_therapy`, `radio_therapy`, `type_of_breast_surgery`.
 4. **Redundant column removal** — `cancer_type` and `pam50_+_claudin-low_subtype` (constant after filtering) are dropped.
 
@@ -39,8 +39,8 @@ Each modeling approach operates on a different subset of the METABRIC feature sp
 
 | Approach | Total features | Clinical | mRNA | Mutation | Notes |
 |---|---|---|---|---|---|
-| **`with_augmentation`** | 683 | 21 | 489 | 173 | Full feature space with one-hot encoded categoricals + engineered discordant score, leading to 706 after the encoding and augmentation |
-| **`pure_numerical`** | 498 | 9 | 489 | 0 | Only pre-existing numeric columns; no categorical encoding, no mutation flags |
+| **`with_augmentation`** | ~693 | ~15 | ~490 | ~170 | Full feature space with one-hot encoded categoricals + engineered discordant score |
+| **`pure_numerical`** | ~489 | ~10 | ~470 | 0 | Only pre-existing numeric columns; no categorical encoding, no mutation flags |
 | **`rezaeian`** | 39 | 0 | 39 | 0 | Published 39-gene mRNA-only signature |
 | **`kurniadi`** | 15 | 0 | 15 | 0 | Published 15-gene mRNA-only signature |
 
